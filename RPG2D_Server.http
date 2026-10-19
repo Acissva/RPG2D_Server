@@ -1,0 +1,21 @@
+@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+
+### 健康接口：200
+GET {{RPG2D_Server_HostAddress}}/api/health
+Accept: application/json
+
+### 公告接口：200
+GET {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json
+
+### 不存在的路径：404
+GET {{RPG2D_Server_HostAddress}}/api/not-found
+Accept: application/json
+
+### 健康接口不支持 POST：405
+POST {{RPG2D_Server_HostAddress}}/api/health
+Accept: application/json
+
+### 公告接口不支持 POST：405
+POST {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json
