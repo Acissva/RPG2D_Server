@@ -1,21 +1,37 @@
-@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+﻿@RPG2D_Server_HostAddress = http://127.0.0.1:5080
 
-### �����ӿڣ�200
+### 健康接口：200，不查询 MySQL
 GET {{RPG2D_Server_HostAddress}}/api/health
 Accept: application/json
 
-### ����ӿڣ�200
+### 公告接口：从 MySQL 读取；有有效记录时 200
 GET {{RPG2D_Server_HostAddress}}/api/notice
 Accept: application/json
 
-### �����ڵ�·����404
+### 不存在的路由：404
 GET {{RPG2D_Server_HostAddress}}/api/not-found
 Accept: application/json
 
-### �����ӿڲ�֧�� POST��405
+### 健康接口不支持 POST：405
 POST {{RPG2D_Server_HostAddress}}/api/health
 Accept: application/json
 
-### ����ӿڲ�֧�� POST��405
+### 公告接口不支持 POST：405
 POST {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json
+
+### 开发管理：按已知公告 id 查询，正常 200
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/2
+Accept: application/json
+
+### 非正数 id：入口开启时 400
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/0
+Accept: application/json
+
+### 非 long 路由：404
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/not-a-number
+Accept: application/json
+
+### 未使用的正数 id：404
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/9223372036854775807
 Accept: application/json
