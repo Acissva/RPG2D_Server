@@ -1,0 +1,30 @@
+﻿@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+
+### 1. Production 进程存活：200
+GET {{RPG2D_Server_HostAddress}}/api/health
+Accept: application/json
+
+### 2. 实际 MySQL 公告：200，protocolVersion=1，客户端联调内容
+GET {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json
+
+### 3. Production 不映射 OpenAPI：404
+GET {{RPG2D_Server_HostAddress}}/openapi/v1.json
+
+### 4. Production 管理 GET：404，即使 Enabled=true
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/5
+
+### 5. Production 管理 POST：404，在错误 JSON 绑定之前结束
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Content-Type: application/json
+
+{
+
+### 6. Production 管理 PUT：404，在 id / JSON 校验之前结束
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/0
+Content-Type: application/json
+
+{
+
+### 7. Production 管理 DELETE：404
+DELETE {{RPG2D_Server_HostAddress}}/api/dev/notices/0

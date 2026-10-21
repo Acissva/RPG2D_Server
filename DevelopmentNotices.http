@@ -1,0 +1,82 @@
+﻿@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+@LearningNoticeId = 4
+
+### 1. 只新增一次：201；将响应中的实际 id 填入顶部变量并保存
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "批次5B：参数化写入公告",
+  "content": "中文、单引号 '、双引号 \" 和 SQL 片段 '; DROP TABLE notices; -- 都作为普通文本保存。"
+}
+
+### 2. 按本批实际 id 查回：200
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/{{LearningNoticeId}}
+Accept: application/json
+
+### 3. 当前公告：新增的样本成为现存最大 id
+GET {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json
+
+### 4. 更新相同内容：仍为 204
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/{{LearningNoticeId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "批次5B：参数化写入公告",
+  "content": "中文、单引号 '、双引号 \" 和 SQL 片段 '; DROP TABLE notices; -- 都作为普通文本保存。"
+}
+
+### 5. 修改本批样本：204；随后重新发送第 2、3 条 GET
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/{{LearningNoticeId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "批次5B：更新后的公告",
+  "content": "本批公告已更新；单引号 ' 与 SQL 片段 '; DROP TABLE notices; -- 仍按文本保存。"
+}
+
+### 6. 无效更新：400；随后查回，确认上一条有效内容保留
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/{{LearningNoticeId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "   ",
+  "content": "本次无效输入不会覆盖公告。"
+}
+
+### 7. 缺字段：400，不新增
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "缺少正文"
+}
+
+### 8. 不能在请求体指定 id：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "id": 999,
+  "title": "不允许指定编号",
+  "content": "编号由数据库生成。"
+}
+
+### 9. 只删除本批变量明确指向的样本：204
+DELETE {{RPG2D_Server_HostAddress}}/api/dev/notices/{{LearningNoticeId}}
+Accept: application/json
+
+### 10. 删除后查同一 id：404；此时再发送第 9 条 DELETE 也为 404
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/{{LearningNoticeId}}
+Accept: application/json
+
+### 11. 删除当前样本后，公开公告回落到仍存在的最大 id
+GET {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json
