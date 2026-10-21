@@ -1,0 +1,24 @@
+﻿@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+@AcceptanceNoticeId = 5
+
+### 1. 健康：正常运行及停库期间均应为 200
+GET {{RPG2D_Server_HostAddress}}/api/health
+Accept: application/json
+
+### 2. 只新增一次：201；把返回的实际 id 填入顶部变量并保存
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "v0.0.17：重启持久化验收",
+  "content": "这条公告由 API 写入 MySQL；重启 C# 服务和 MySQL 后，仍应保留相同编号与内容。"
+}
+
+### 3. 指定验收记录：正常、C# 重启后、MySQL 恢复后均为 200，id 和文本相同
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/{{AcceptanceNoticeId}}
+Accept: application/json
+
+### 4. 公开当前公告：正常为 200；停库为 503；恢复后无需重启 C# 即可重新读取
+GET {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json

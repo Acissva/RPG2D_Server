@@ -1,0 +1,24 @@
+﻿@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+@AcceptanceNoticeId = 5
+
+### 1. C# 健康：200；MySQL 停止时也应为 200
+GET {{RPG2D_Server_HostAddress}}/api/health
+Accept: application/json
+
+### 2. 先确认本批沿用的原验收记录：开发库中为 200
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/{{AcceptanceNoticeId}}
+Accept: application/json
+
+### 3. 仅开发库且确认目标 id=5 后发送：204；随后在编辑器和 Player 刷新
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/{{AcceptanceNoticeId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "v0.0.17：客户端联调",
+  "content": "公告已通过 MySQL 更新；Unity 编辑器与 v0.0.16 Windows Player 正在使用同一份数据库内容。"
+}
+
+### 4. 公开公告：正常 200；停库 503；切到空验收库 404；恢复开发库后 200
+GET {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json

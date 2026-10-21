@@ -1,0 +1,183 @@
+﻿@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+@BmpNoticeId = 1
+@EmojiNoticeId = 2
+@RecoveryNoticeId = 3
+
+### 1. 当前公告：初始空表 404；有记录 200；故障注入时按学习说明检查
+GET {{RPG2D_Server_HostAddress}}/api/notice
+Accept: application/json
+
+### 2. 合法中文边界：201；保存实际 id 到 BmpNoticeId，只新增一次
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+  "content": "文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文"
+}
+
+### 3. 合法 emoji 边界：201；保存实际 id 到 EmojiNoticeId，只新增一次
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+  "content": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂"
+}
+
+### 4. 查第一条样本：200
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/{{BmpNoticeId}}
+Accept: application/json
+
+### 5. 查第二条样本：200
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/{{EmojiNoticeId}}
+Accept: application/json
+
+### 6. 标题 65 个 UTF-16 单元：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+  "content": "有效正文"
+}
+
+### 7. 正文 513 个 UTF-16 单元：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "有效标题",
+  "content": "文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文"
+}
+
+### 8. 标题 33 个 emoji = 66 个 UTF-16 单元：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂",
+  "content": "有效正文"
+}
+
+### 9. 正文 257 个 emoji = 514 个 UTF-16 单元：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "有效标题",
+  "content": "🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂🙂"
+}
+
+### 10. null 标题：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": null,
+  "content": "有效正文"
+}
+
+### 11. 缺少正文：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "缺少正文"
+}
+
+### 12. 空白标题：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "   ",
+  "content": "有效正文"
+}
+
+### 13. 故意不合法的 JSON：400，此处缺少右花括号是测试数据
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{"title": "故意缺少结尾"
+
+### 14. 额外 id 字段：400
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "id": 999,
+  "title": "不能指定编号",
+  "content": "有效正文"
+}
+
+### 15. 相同内容更新第一条：204
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/{{BmpNoticeId}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界界",
+  "content": "文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文文"
+}
+
+### 16. 修改旧记录：204；随后发送第 4、1 条，当前仍应是第二条
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/{{BmpNoticeId}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "旧记录已更新",
+  "content": "只修改第一条测试记录；当前公告仍应是后建的 emoji 记录。"
+}
+
+### 17. 只在 DBeaver 已锁定第一条时发送：503；超时后先查询确认结果
+PUT {{RPG2D_Server_HostAddress}}/api/dev/notices/{{BmpNoticeId}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "锁等待请求",
+  "content": "本请求用于锁等待超时观察；超时后通过查询确认实际结果。"
+}
+
+### 18. 删除第二条：204；第 1 条回落到第一条
+DELETE {{RPG2D_Server_HostAddress}}/api/dev/notices/{{EmojiNoticeId}}
+Accept: application/json
+
+### 19. 删除第一条：204；第 1 条变为 404
+DELETE {{RPG2D_Server_HostAddress}}/api/dev/notices/{{BmpNoticeId}}
+Accept: application/json
+
+### 20. 仅恢复 rpg2d_dev 配置后执行：原验收 id=5 仍为 200
+GET {{RPG2D_Server_HostAddress}}/api/dev/notices/5
+Accept: application/json
+
+### 21. 健康：数据库错误期间也应为 200
+GET {{RPG2D_Server_HostAddress}}/api/health
+Accept: application/json
+
+### 22. 隔离库空表后重新新增：201；保存实际 id 到 RecoveryNoticeId
+POST {{RPG2D_Server_HostAddress}}/api/dev/notices
+Accept: application/json
+Content-Type: application/json
+
+{
+  "title": "隔离验收恢复公告",
+  "content": "空表后重新新增，公开查询应恢复成功。"
+}
+
+### 23. 清理自己的恢复样本：204；第 1 条再次为 404
+DELETE {{RPG2D_Server_HostAddress}}/api/dev/notices/{{RecoveryNoticeId}}
+Accept: application/json
