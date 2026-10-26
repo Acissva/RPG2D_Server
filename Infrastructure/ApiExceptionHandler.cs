@@ -23,16 +23,21 @@ namespace RPG2D_Server.Infrastructure
 
             ProblemDetails problem;
 
-            if (exception is NoticeValidationException validation)
+            if (exception is InputValidationException validation)
             {
-                problem = new ValidationProblemDetails(validation.Errors) { Status = StatusCodes.Status400BadRequest, Title = "公告输入无效" };
-                _logger.LogWarning("公告输入校验失败，TraceId {TraceId}。", httpContext.TraceIdentifier);
+                problem = new ValidationProblemDetails(validation.Errors) { Status = StatusCodes.Status400BadRequest, Title = "输入数据无效" };
+                _logger.LogWarning("请求输入校验失败，TraceId {TraceId}。", httpContext.TraceIdentifier);
             }
             else
             {
-                var unavailable = exception is NoticeStorageUnavailableException;
+                var unavailable = exception is DataStoreUnavailableException;
                 var statusCode = unavailable ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status500InternalServerError;
-                problem = new ProblemDetails { Status = statusCode, Title = unavailable ? "公告暂时不可用" : "服务端处理失败", Detail = unavailable ? "请稍后重试。" : "请联系服务维护者。" };
+                problem = new ProblemDetails
+                {
+                    Status = statusCode,
+                    Title = unavailable ? "数据服务暂时不可用" : "服务端处理失败",
+                    Detail = unavailable ? "请稍后重试。" : "请联系服务维护者。"
+                };
                 _logger.LogError("请求失败，异常类型 {ExceptionType}，TraceId {TraceId}。", exception.GetType().Name, httpContext.TraceIdentifier);
             }
 
