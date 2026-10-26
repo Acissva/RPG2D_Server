@@ -1,0 +1,13 @@
+@Host = http://127.0.0.1:5080
+
+### 1. HTTP 存活：各阶段均应为 200
+GET {{Host}}/api/health
+Accept: application/json
+
+### 2. 公告：按学习材料中的阶段观察 404 / 500 / 503 / 恢复后的结果
+GET {{Host}}/api/notice
+Accept: application/json
+
+### 3. 仅恢复 rpg2d_dev 并重启 C# 后执行：原有 id=5 应为 200
+GET {{Host}}/api/dev/notices/5
+Accept: application/json
