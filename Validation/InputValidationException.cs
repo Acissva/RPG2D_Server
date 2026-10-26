@@ -1,10 +1,10 @@
 ﻿namespace RPG2D_Server.Validation
 {
-    public sealed class NoticeValidationException : Exception
+    public sealed class InputValidationException : Exception
     {
         public IDictionary<string, string[]> Errors { get; }
 
-        public NoticeValidationException(Dictionary<string, string[]> errors) : base("公告输入无效。")
+        public InputValidationException(Dictionary<string, string[]> errors) : base("输入数据无效。")
         {
             Errors = new Dictionary<string, string[]>(errors);
         }

@@ -8,5 +8,5 @@
         不是方法：没有返回值、没有方法体，是类型定义
         是一种特殊 class（引用类型 record），主打用来存数据、做 DTO、消息载体
      */
-    public sealed record NoticeRecord(long id, string Title, string Content);
+    public sealed record NoticeRecord(long Id, string Title, string Content);
 }

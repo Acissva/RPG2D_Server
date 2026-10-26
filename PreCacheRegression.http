@@ -1,0 +1,82 @@
+﻿@Host = http://127.0.0.1:5080
+@SampleId = 6
+@InitialTitle = v0.0.18：前置整理回归
+@InitialContent = 这条临时公告验证公共 MySQL 执行器；中文、emoji 🙂、单引号 ' 均作为普通文本保存。
+@UpdatedTitle = v0.0.18：前置整理回归已更新
+@UpdatedContent = 临时公告已通过公共执行器更新；本轮结束后只按实际编号删除此样本。
+
+### 1. 健康：200
+GET {{Host}}/api/health
+Accept: application/json
+
+### 2. 开始前的当前公告：200；记住内容便于最后对照
+GET {{Host}}/api/notice
+Accept: application/json
+
+### 3. 只新增一次：201；把响应实际 id 填入顶部 SampleId 并保存，再继续
+POST {{Host}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "{{InitialTitle}}",
+  "content": "{{InitialContent}}"
+}
+
+### 4. 按本轮实际编号查回：200，字段为 id / title / content
+GET {{Host}}/api/dev/notices/{{SampleId}}
+Accept: application/json
+
+### 5. 当前公告应为新增样本：200，字段仍为 protocolVersion / title / content
+GET {{Host}}/api/notice
+Accept: application/json
+
+### 6. 更新相同内容：仍为 204
+PUT {{Host}}/api/dev/notices/{{SampleId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "{{InitialTitle}}",
+  "content": "{{InitialContent}}"
+}
+
+### 7. 修改临时样本：204；随后分别执行第 4、5 条 GET 确认新内容
+PUT {{Host}}/api/dev/notices/{{SampleId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "{{UpdatedTitle}}",
+  "content": "{{UpdatedContent}}"
+}
+
+### 8. 无效更新：400，包含 title 字段错误；随后第 4 条应保留上一条有效内容
+PUT {{Host}}/api/dev/notices/{{SampleId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "   ",
+  "content": "本次无效输入应在写入前拒绝。"
+}
+
+### 9. 删除前再次查回：200，确认是本轮临时样本的编号和内容
+GET {{Host}}/api/dev/notices/{{SampleId}}
+Accept: application/json
+
+### 10. 只删除本轮 SampleId 对应的临时样本：204
+DELETE {{Host}}/api/dev/notices/{{SampleId}}
+Accept: application/json
+
+### 11. 删除后按相同编号查回：404
+GET {{Host}}/api/dev/notices/{{SampleId}}
+Accept: application/json
+
+### 12. 再次删除同一样本：404
+DELETE {{Host}}/api/dev/notices/{{SampleId}}
+Accept: application/json
+
+### 13. 删除临时样本后，公开公告恢复原有内容：200
+GET {{Host}}/api/notice
+Accept: application/json

@@ -1,16 +1,14 @@
-﻿using MySqlConnector;
+﻿using RPG2D_Server.Infrastructure.Database;
 
 namespace RPG2D_Server.Data
 {
     public sealed class MySqlNoticeRepository : INoticeRepository
     {
-        private readonly MySqlDataSource _dataSource;
-        private readonly ILogger<MySqlNoticeRepository> _logger;
+        private readonly MySqlOperationExecutor _executor;
 
-        public MySqlNoticeRepository(MySqlDataSource dataSource, ILogger<MySqlNoticeRepository> logger)
+        public MySqlNoticeRepository(MySqlOperationExecutor executor)
         {
-            _dataSource = dataSource;
-            _logger = logger;
+            _executor = executor;
         }
 
         public Task<NoticeRecord?> GetCurrentAsync(CancellationToken cancellationToken)
@@ -25,7 +23,7 @@ namespace RPG2D_Server.Data
 
         public Task<long> CreateAsync(string title, string content, CancellationToken cancellationToken)
         {
-            return ExecuteAsync(async (connection, token) =>
+            return _executor.ExecuteAsync(async (connection, token) =>
             {
                 await using var command = connection.CreateCommand();
                 command.CommandText = "INSERT INTO notices (title, content) VALUES (@title, @content);";
@@ -44,7 +42,7 @@ namespace RPG2D_Server.Data
 
         public Task<bool> UpdateAsync(long id, string title, string content, CancellationToken cancellationToken)
         {
-            return ExecuteAsync(async (connection, token) =>
+            return _executor.ExecuteAsync(async (connection, token) =>
             {
                 await using var command = connection.CreateCommand();
                 command.CommandText = "UPDATE notices SET title = @title, content = @content WHERE id = @id;";
@@ -57,7 +55,7 @@ namespace RPG2D_Server.Data
 
         public Task<bool> DeleteAsync(long id, CancellationToken cancellationToken)
         {
-            return ExecuteAsync(async (connection, token) =>
+            return _executor.ExecuteAsync(async (connection, token) =>
             {
                 await using var command = connection.CreateCommand();
                 command.CommandText = "DELETE FROM notices WHERE id = @id;";
@@ -66,43 +64,9 @@ namespace RPG2D_Server.Data
             }, cancellationToken);
         }
 
-        private async Task<TResult> ExecuteAsync<TResult>(Func<MySqlConnection, CancellationToken, Task<TResult>> operation, CancellationToken cancellationToken)
-        {
-            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            deadline.CancelAfter(TimeSpan.FromSeconds(3));
-
-            try
-            {
-                await using var connection = await _dataSource.OpenConnectionAsync(deadline.Token);
-                return await operation(connection, deadline.Token);
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested)
-            {
-                _logger.LogWarning("公告数据库操作达到访问期限。");
-                throw new NoticeStorageUnavailableException();
-            }
-            catch (MySqlException exception)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                _logger.LogError("公告数据库操作失败，数据库错误码 {DatabaseErrorCode}。", exception.Number);
-
-                if (deadline.IsCancellationRequested || exception.IsTransient
-                    || exception.ErrorCode is MySqlErrorCode.UnableToConnectToHost
-                    or MySqlErrorCode.CommandTimeoutExpired
-                    or MySqlErrorCode.AccessDenied
-                    or MySqlErrorCode.DatabaseAccessDenied
-                    or MySqlErrorCode.TableAccessDenied)
-                {
-                    throw new NoticeStorageUnavailableException();
-                }
-
-                throw;
-            }
-        }
-
         private Task<NoticeRecord?> ReadSingleAsync(string sql, long? id, CancellationToken cancellationToken)
         {
-            return ExecuteAsync<NoticeRecord?>(async (connection, token) =>
+            return _executor.ExecuteAsync<NoticeRecord?>(async (connection, token) =>
             {
                 await using var command = connection.CreateCommand();
                 command.CommandText = sql;
