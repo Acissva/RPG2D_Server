@@ -1,37 +1,148 @@
-﻿@RPG2D_Server_HostAddress = http://127.0.0.1:5080
+﻿@Host = http://127.0.0.1:5080
+@SampleId = 0
 
-### 健康接口：200，不查询 MySQL
-GET {{RPG2D_Server_HostAddress}}/api/health
+# 唯一维护的 HTTP 请求入口；每次只发送当前选中的请求。
+# Host 指向本次正在验证的进程；Development 与 Production 不同时占用同一端口。
+# SampleId 初始为 0，不代表已有公告；仅在 B1 成功后填入本轮实际 id。
+# 本批首次观察只执行 A1、A2；B / C / D 在后续验收按前提逐条执行。
+# B 组只处理本轮新建样本；删除前执行 B2 确认编号、标题和正文。
+# 修改 Host、环境或数据库后，先核对本轮样本归属；不能沿用旧编号。
+
+### A1 通用：健康 200；不访问数据库
+GET {{Host}}/api/health
 Accept: application/json
 
-### 公告接口：从 MySQL 读取；有有效记录时 200
-GET {{RPG2D_Server_HostAddress}}/api/notice
+### A2 通用：当前公告；有效内容 200，protocolVersion / title / content 保持原协议
+# 缓存未命中且数据库无公告为 404；存储故障按实际缓存状态观察，不能一律预期 503。
+GET {{Host}}/api/notice
 Accept: application/json
 
-### 不存在的路由：404
-GET {{RPG2D_Server_HostAddress}}/api/not-found
+### A3 OpenAPI：Development 为 200，Production 为 404
+GET {{Host}}/openapi/v1.json
 Accept: application/json
 
-### 健康接口不支持 POST：405
-POST {{RPG2D_Server_HostAddress}}/api/health
+### A4 不存在的路由：404
+GET {{Host}}/api/not-found
 Accept: application/json
 
-### 公告接口不支持 POST：405
-POST {{RPG2D_Server_HostAddress}}/api/notice
+### A5 健康接口不支持 POST：405
+POST {{Host}}/api/health
 Accept: application/json
 
-### 开发管理：按已知公告 id 查询，正常 200
-GET {{RPG2D_Server_HostAddress}}/api/dev/notices/2
+### A6 公开公告接口不支持 POST：405
+POST {{Host}}/api/notice
 Accept: application/json
 
-### 非正数 id：入口开启时 400
-GET {{RPG2D_Server_HostAddress}}/api/dev/notices/0
+### B1 仅 Development + 开关开启 + 回环来源：只新增一次，预期 201
+# 将响应实际 id 填入顶部 SampleId 并保存；核对 Location 指向同一 id 的管理 GET。
+# 本请求超时或失败时先核对结果，不直接重复 POST。
+POST {{Host}}/api/dev/notices
+Content-Type: application/json
 Accept: application/json
 
-### 非 long 路由：404
-GET {{RPG2D_Server_HostAddress}}/api/dev/notices/not-a-number
+{
+  "title": "v0.0.19-pre：结构整理临时样本",
+  "content": "本轮样本验证公告结构整理；中文、emoji 🙂、单引号 ' 均按普通文本保留。"
+}
+
+### B2 本轮样本查回：存在时 200；B6 删除后同一请求为 404
+# SampleId 必须来自本轮 B1 的成功响应。
+GET {{Host}}/api/dev/notices/{{SampleId}}
 Accept: application/json
 
-### 未使用的正数 id：404
-GET {{RPG2D_Server_HostAddress}}/api/dev/notices/9223372036854775807
+### B3 本轮样本相同内容 PUT：仍为 204
+PUT {{Host}}/api/dev/notices/{{SampleId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "v0.0.19-pre：结构整理临时样本",
+  "content": "本轮样本验证公告结构整理；中文、emoji 🙂、单引号 ' 均按普通文本保留。"
+}
+
+### B4 更新本轮样本：204；随后重发 B2、A2 检查新内容
+PUT {{Host}}/api/dev/notices/{{SampleId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "v0.0.19-pre：结构整理临时样本已更新",
+  "content": "本轮样本已更新；验收结束后只按本轮实际编号清理。"
+}
+
+### B5 无效更新：400；随后 B2 应保留 B4 的有效内容
+PUT {{Host}}/api/dev/notices/{{SampleId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "   ",
+  "content": "空白标题应在写入前拒绝。"
+}
+
+### B6 删除前先发 B2，确认是本轮样本；首次删除 204
+# 删除后重发 B2 为 404，再次执行 B6 为 404；重发 A2 检查回落原公告。
+DELETE {{Host}}/api/dev/notices/{{SampleId}}
+Accept: application/json
+
+### C1 Development 管理开启时：非正数 id 返回 400
+GET {{Host}}/api/dev/notices/0
+Accept: application/json
+
+### C2 非 long 的管理路由：404
+GET {{Host}}/api/dev/notices/not-a-number
+Accept: application/json
+
+### C3 Development 管理开启时：缺少正文返回 400，不创建记录
+POST {{Host}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "缺少正文"
+}
+
+### C4 Development 管理开启时：额外 id 字段返回 400，不创建记录
+POST {{Host}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "id": 0,
+  "title": "不接受客户端指定编号",
+  "content": "编号由数据库生成。"
+}
+
+### C5 Development 管理开启时：65 个 ASCII / UTF-16 单元的标题返回 400
+POST {{Host}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+  "title": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "content": "标题超过 64 个 UTF-16 代码单元，应拒绝写入。"
+}
+
+### D1 仅 Production 验收：先确认日志环境 / 本版发布路径，并故意开启开发开关
+# 先重发 A1、A2，正常数据时均为 200；A3 必须为 404。
+# 管理 GET 为 404，先于非正数 id 的业务校验。
+GET {{Host}}/api/dev/notices/0
+Accept: application/json
+
+### D2 仅 Production：管理 POST 返回 404，先于 JSON 绑定；下方不完整 JSON 为故意构造
+POST {{Host}}/api/dev/notices
+Content-Type: application/json
+Accept: application/json
+
+{
+
+### D3 仅 Production：管理 PUT 返回 404，先于 JSON / id 校验；下方不完整 JSON 为故意构造
+PUT {{Host}}/api/dev/notices/0
+Content-Type: application/json
+Accept: application/json
+
+{
+
+### D4 仅 Production：管理 DELETE 返回 404
+DELETE {{Host}}/api/dev/notices/0
 Accept: application/json
