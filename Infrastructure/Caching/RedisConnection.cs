@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Options;
-using RPG2D_Server.Configuration;
 using StackExchange.Redis;
 
 namespace RPG2D_Server.Infrastructure.Caching

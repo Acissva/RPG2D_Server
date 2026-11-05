@@ -1,5 +1,5 @@
 ﻿using MySqlConnector;
-using RPG2D_Server.Data;
+using RPG2D_Server.Shared.Data;
 
 namespace RPG2D_Server.Infrastructure.Database
 {

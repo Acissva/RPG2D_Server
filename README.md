@@ -1,8 +1,30 @@
 # RPG2D_Server
 
-RPG2D 独立 ASP.NET Core 业务服务端。v0.0.18 在 MySQL 公告持久化与受限开发管理 CRUD 的基础上接入 Redis Cache-Aside，保留 protocolVersion=1，与已有 v0.0.16 Unity / Windows Player 兼容。正式发布节点以服务端 main 提交与附注标签为准。
+RPG2D 独立 ASP.NET Core 业务服务端。v0.0.19-pre 在既有 MySQL 公告、受限开发管理 CRUD 与 Redis Cache-Aside 基础上整理业务目录、公共契约及启动注册，保留 protocolVersion=1，与已有 v0.0.16 Unity / Windows Player 兼容。正式发布节点以服务端 main 提交与附注标签为准。
 
 数据库执行包装位于 Infrastructure/Database/MySqlOperationExecutor，复用数据源并为每次操作独立获取连接；公告 SQL、参数绑定和记录映射由 MySqlNoticeRepository 负责。公共 ICacheStore / RedisCacheStore 处理 Redis 命令与有限等待，NoticeCache 负责公告缓存格式、TTL 和降级策略。已识别的存储不可用使用 DataStoreUnavailableException，输入字段错误使用 InputValidationException；公告规则由 NoticeContentRules 定义，记录公有属性使用 Id，对外 JSON 维持 camelCase。
+
+## 当前源码结构
+
+v0.0.19-pre 将公告相关代码聚合到 Features/Notice，按 Controllers、Contracts、Services、Data、Caching、Configuration、Validation 和 Filters 区分职责，命名空间与目录一致；Program.cs 已同步引用。候选验收与最终 main 发布分别记录，不用候选目录或工作分支状态代表正式标签。
+
+HealthController / HealthResponse 已聚合到 Features/Health。当前公告的 Service 入口统一为 GetCurrentAsync，异步 Controller 方法使用 Async 后缀；管理按编号查询通过显式 ActionName 与 CreatedAtAction 保持一致，URL 继续采用既有显式路由。
+
+公共缓存接口 / 缓存不可用异常位于 Shared/Caching，公共数据异常位于 Shared/Data，公共输入异常位于 Shared/Validation。RedisCacheOptions 与连接 / 存储实现在 Infrastructure/Caching，ApiExceptionHandler 在 Infrastructure/Web；Shared 的这些类型不依赖公告或 Redis 驱动。
+
+Web / Redis 注册已分别归入 Composition/WebServiceCollectionExtensions.AddWebApi 与 Composition/RedisServiceCollectionExtensions.AddRedisCaching。RedisConnection 保持单例，并由同一实例承担宿主启动 / 停止；Program 保留原中间件顺序。
+
+MySqlConfiguration.ReadValidatedOptions 承接原连接配置读取与验证；AddMySqlDatabase 登记数据源 / 执行器，AddNoticeFeature 登记公告配置与组件。Program 使用同一次验证的 ConnectionString / Database 组装数据库和公告，再保留原中间件顺序。
+
+AddNoticeFeature 在首次解析 INoticeCache 单例时根据既有 Redis:Enabled 选择 NoticeCache 或 DisabledNoticeCache。启用策略只依赖 ICacheStore 与公告选项；禁用策略不取得存储，仍保留取消 / 输入错误任务语义。既有 HTTP 路径、JSON、SQL 与缓存格式继续作为兼容基线。
+
+2026-10-27 本版真实开发应用的公告 CRUD / 正常缓存回归 42 项通过，包括创建 Location、相同内容 PUT、写后失效、缓存 JSON / TTL、重复读取不续期和输入拒绝。临时公告 id=10 已删除，原 id=1 / 2 / 5 的标题与正文和核查前一致；未重置自增。使用同一 DLL、命令行 Redis:Enabled=false 的临时独立应用只读检查 5 项通过，公开公告正确且不创建缓存，随后该进程已停止。
+
+本版 Redis 运行期停服阶段另有 25 项通过：原开发进程保持，健康 / 公告 200；一次新建临时公告 id=11，POST 201 / Location、PUT 204、DELETE 204 与重复删除 404 均保持正确，SQL 与公开读取跟随本次新增 / 更新。样本已清理，原 3 条公告逐条一致，公开恢复 id=5。启动 Redis 后，同进程恢复只读检查 13 项通过：原 PID / 启动时间 / DLL 保持，数据库与公开公告正确，缓存恢复原 JSON 与有限 TTL，重复读取不续期。数据库边界结果见下一段，跨端与本版发布仍待验收。下文 v0.0.18 运行结果属于历史发布记录。
+
+本版 MySQL 运行期停服阶段 19 项通过：保持原 C# / Redis，缓存自然过期后，公开读取、管理读取和一次唯一标记 POST 均为 503，ProblemDetails 内容与字段符合预期、失败 POST 无 Location；无效输入仍为 400，健康仍为 200，缓存没有被故障结果回填。故障 POST 没有自动重试；恢复 / 数据 / 空表另有 22 项通过，原开发进程保持，完整表仍为原 id=1 / 2 / 5 且逐条一致，故障标记不存在，公告与缓存恢复。现有独立验收空表通过实际组件的临时只读 HTTP 宿主确认公开 / 管理 404，宿主随后关闭，未改主服务配置或数据。
+
+2026-11-05 当前源码 Release 编译通过，0 警告、0 错误；bin/publish/v0.0.19-pre-candidate 已发布，DLL 与当时 Release 哈希一致。三个新旧客户端 / 服务端组合和新 Windows Player 请求中退出已核查，旧 v0.0.18 发布 DLL 保留原哈希。候选 Production 健康 / 公告为 200，OpenAPI 与管理 GET 为 404，管理开关显式为 true 时仍被 Production 拒绝。Ubuntu / Redis 曾停止并使公告回源 MySQL；恢复后同一候选进程自动重连，重新回填 / 命中 Production Key，schemaVersion=1、id=5、内容与公告一致、TTL 有限。候选验收独立于最终 main 正式构建和附注标签，最终发布身份以 Git 与产物证据为准。
 
 ## 开发环境
 
@@ -44,9 +66,9 @@ RedisConnection 是 Singleton，同一对象注册为 IHostedService，在启动
 
 ## 公告读取缓存
 
-公开查询通过 NoticeCache 实现 Cache-Aside。启用时先读取 / 校验缓存，缺键、无效缓存或预期缓存故障再查询 MySQL；有效数据库结果尽力回填，缓存回填故障不丢弃数据库结果。管理按编号查询继续直接读 MySQL，公开成功 DTO 仍为 protocolVersion / title / content。
+公开查询经 INoticeCache 协作。启用时 NoticeCache 实现 Cache-Aside：先读取 / 校验缓存，缺键、无效缓存或预期缓存故障再查询 MySQL；有效数据库结果尽力回填，缓存回填故障不丢弃数据库结果。禁用时 DisabledNoticeCache 返回空缓存结果且不访问存储，业务继续查询 MySQL；取消不作为普通未命中处理。管理按编号查询继续直接读 MySQL，公开成功 DTO 仍为 protocolVersion / title / content。
 
-缓存使用 Redis String 保存 schemaVersion=1、id、title、content 的 JSON。NoticeCache:TtlSeconds 默认 30、启动校验 1～300；命中不续期，空表不做负缓存。Key 为 rpg2d:{environment}:{database}:notice:current:v1，环境转小写、数据库保持大小写，两段经转义；CurrentKey 由 Program 根据实际配置派生。当前开发键为 rpg2d:development:rpg2d_dev:notice:current:v1。无效 JSON、格式版本或内容被拒绝并尽力失效，不修改数据库来修补缓存内容。
+缓存使用 Redis String 保存 schemaVersion=1、id、title、content 的 JSON。NoticeCache:TtlSeconds 默认 30、启动校验 1～300；命中不续期，空表不做负缓存。Key 为 rpg2d:{environment}:{database}:notice:current:v1，环境转小写、数据库保持大小写，两段经转义；CurrentKey 由 Composition/NoticeServiceCollectionExtensions 使用运行环境和同一次验证所得数据库名派生。当前开发键为 rpg2d:development:rpg2d_dev:notice:current:v1。无效 JSON、格式版本或内容被拒绝并尽力失效，不修改数据库来修补缓存内容。
 
 管理 POST / PUT / DELETE 校验通过后，由 NoticeService 的私有包装执行数据库操作，finally 统一尝试失效当前公告缓存；有效操作返回 false 或抛数据库异常也尝试清理。预先取消或输入无效时不开始该次写入 / 清理。写后清理使用独立 1 秒取消期限，底层继续有限等待；记录预期缓存故障、清理期限或非预期清理异常，保留原数据库返回 / 异常。只有删除正常完成才记录成功失效，缺键删除也满足目标。
 
@@ -67,11 +89,11 @@ v0.0.18 的 Redis 运行期停服 / 恢复已观察：最新完整五阶段快�
 
 Repository 通过公共 MySqlOperationExecutor 每次异步获取连接；操作内释放 Reader / 命令，执行器负责释放本次连接，数据源由 DI 容器管理。请求取消令牌传到数据库操作，并设置约 3 秒的访问期限。连接等待、命令超时和取消清理有不同阶段，实际 HTTP 耗时在集中故障验收中记录。
 
-RPG2D_Server.http 保留健康、公告及原有方法 / 路由检查请求；DevelopmentNotices.http 提供管理写入练习。Development 提供 /openapi/v1.json，Production 不映射。
+RPG2D_Server.http 是源码树中唯一维护的 HTTP 请求文件，共 21 项分节请求：A1～A6 为通用公开读取 / 路由 / 方法检查，B1～B6 为本轮临时样本 CRUD，C1～C5 为必要输入 / 路由边界，D1～D4 为 Production 管理访问拒绝。Development 提供 /openapi/v1.json，Production 不映射；两种环境复用 A1 / A2 / A3，按实际环境检查预期。
 
-v0.0.18 前置整理的正常 CRUD 回归使用 PreCacheRegression.http：POST 只发送一次，将实际编号保存为 SampleId，再验证相同内容 PUT、更新、输入拒绝和按编号清理。本轮已保存的临时样本编号为 6，清理后 GET 为 404，原公告保持不变；重新实操应以新 POST 返回的编号为准。
+统一变量 Host 指向本次验证的服务进程，SampleId 默认为 0，仅在 B1 成功后填写本轮实际响应编号。依次使用 B2 / B3 / B4 / B5 检查查回、相同内容 PUT、更新及输入拒绝；删除前重发 B2 确认样本，B6 清理后用同一 B2 检查 404，A2 检查公开公告回落。新建只发送一次，不沿用历史样本编号。
 
-PreCacheBoundary.http 用于前置边界观察，只含健康、当前公告和原样本的 GET。空表 / 坏存量 / MySQL97 停服与同进程恢复已由用户完成观察；最终只读核查确认 rpg2d_dev 配置及原公告恢复，独立验收表为空。中间观察与最终直接核查的证据边界见 v0.0.18 开发记录。
+空表 / 坏存量 / MySQL97 停服与同进程恢复的历史观察保存在设计目录 v0.0.18 开发记录中。后续边界观察复用统一入口 A1 / A2 与按当轮样本编号配置的 B2；SQL 和依赖操作仍按当轮验收步骤执行，不为历史阶段另建请求文件。
 
 在 VS 调试中测试数据库停服时，调试器可能在 DataStoreUnavailableException 抛出处暂停，尚未执行到统一异常处理器；暂停期间其他请求也可能等待。在“调试 → 窗口 → 异常设置”中取消该预期异常的“引发时中断”，必要时启用 Continue When Unhandled in User Code，然后按 F5 继续。保留业务异常和统一处理代码；正常执行时公告返回 503，health 不访问数据库、仍为 200。每次只发送当前选定的 .http 请求，避免执行整份文件中的 POST。
 
@@ -104,7 +126,7 @@ POST / PUT 共用 NoticeWriteRequest 和 NoticeContentRules。缺字段、null�
 
 每次 CRUD 是一条 SQL，沿用 InnoDB 自动提交，不自动重试写请求。写入超时或连接中断后的结果可能不确定，先查询数据库再决定后续操作，不直接重复 POST。
 
-DevelopmentNotices.http 每次只发送当前选定的请求。只新增一次，将响应实际 id 保存到 LearningNoticeId；后续读、改、删只使用该编号。删除前先 GET 确认是自己的学习样本，不清空表、不重置自增编号，保留其他公告。新增记录成为当前最大 id，删除后公开公告回落到仍存在的最大 id。
+RPG2D_Server.http 的 B 组每次只发送当前选定的请求。只新增一次，将响应实际 id 保存到 SampleId；后续读、改、删只使用该编号。删除前先 GET 确认是自己的学习样本，不清空表、不重置自增编号，保留其他公告。新增记录成为当前最大 id，删除后公开公告回落到仍存在的最大 id。
 
 关闭开发配置中的 Enabled 并重启调试实例后，管理 GET 返回 404，公开健康及当前公告接口继续按原规则工作。开发配置保留 true；已通过实际 Production 请求与隔离访问条件检查确认管理入口被拒绝，非回环等上下文覆盖使用隔离检查，未搭建外部网络访问环境。
 
@@ -120,7 +142,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON rpg2d_acceptance_v0017.notices TO 'rpg2d
 
 LIKE 复制定义而不复制数据。已有同名库时先核对用途，不删除重建；本节是可选验收准备方法，不代表脚本已经执行。该账号在验收库也只获指定表 CRUD，不获得 DDL 权限。
 
-停止开发服务后，在本机 User Secrets 的现有连接串中临时修改 Database 选项，仍用原账号、TLS 和有限超时；边界请求保存在 BoundaryAcceptance.http，每次只发送选中的请求。成功响应的实际 id 保存到各样本变量，删除只使用本次创建的编号。
+停止开发服务后，在本机 User Secrets 的现有连接串中临时修改 Database 选项，仍用原账号、TLS 和有限超时；观察时复用 RPG2D_Server.http 的 A / B / C 分节，每次只发送选中的请求。切库后重新核对样本归属；只把本次创建的实际编号填入 SampleId，删除前查回确认。
 
 验收分别观察输入拒绝 400、空表 404、坏存量内容 / 列结构错误 500、不可用身份 / 锁等待超时 503。结构故障只在验收表中临时改列名并立即恢复；FOR UPDATE 观察结束必须在原连接 COMMIT / ROLLBACK 释放锁。写入超时后查询实际结果，不用错误状态推断一定未提交。
 
@@ -128,9 +150,11 @@ LIKE 复制定义而不复制数据。已有同名库时先核对用途，不删
 
 ## 客户端兼容验收
 
+本节下列操作与结果保留 v0.0.17 / v0.0.18 历史验收背景。当前 v0.0.19-pre 客户端已改为 NoticeSystem / ServerNoticeView 与公共 HttpRequestSystem；编辑器集成、旧 v0.0.16 Player / 新 Windows candidate 与两版服务的三个组合已核查，不重复旧数据样本 / 故障矩阵。实际 Windows 退出记录证明原生请求中止及进程退出；延迟夹具仍记录写回完成，未认定服务端任务取消。
+
 客户端继续复用 v0.0.16 源码与已有 Windows Player。实际入口为客户端 Assets/Scenes/StartScene.scene；连接资产已配置 http://127.0.0.1:5080、5 秒超时，经 ConfigSystem 读取，不包含数据库配置。旧 Player 位于客户端工程 Builds/v0.0.16/RPG2D.exe。
 
-ClientAcceptance.http 保留 v0.0.17 的原样本联调请求；v0.0.18 的 6A 材料使用一次 POST 创建独立临时公告，按命名响应编号更新 / 查询 / 删除，原 id=5 保留。观察编辑器与 Player 同步更新、Redis 停服时回源成功、双依赖故障时旧内容 / 首次无内容、请求中开始游戏或关闭 Player，以及恢复后重新显示。
+客户端联调复用 RPG2D_Server.http 的 A2 和 B 组：需要新样本时只执行一次 B1，再按实际 SampleId 更新、查询与删除，保留原有公告。根据当轮验收步骤观察编辑器与 Player 同步更新、Redis 不可用时回源、双依赖故障时旧内容 / 首次无内容、请求中开始游戏或关闭 Player，以及恢复后重新显示。既有 v0.0.17 / v0.0.18 的过程与证据保留在设计目录对应开发记录中。
 
 ServerInfoView 关闭时取消请求，GameServerSystem 在请求取消 / 应用退出时 Abort 并释放；客户端检查涵盖请求中开始游戏或退出，以及公告失败时仍可完成现有单机流程。正常状态文案为“服务可用”，失败时可能显示“显示上次内容”；该内容只是当前客户端进程的内存快照。
 
@@ -138,12 +162,12 @@ v0.0.18 的 6A 已通过：客户端源码 / Player 哈希未变、工作区干�
 
 ## 本机 Release / Production
 
-Run-LocalProduction.ps1 默认运行 bin/publish/v0.0.18。功能分支的实际 Release / Production 候选已通过公开接口、环境访问限制及 Redis 停服 / 恢复验收；正式发布仍按下文 main 构建与标签流程执行。
+Run-LocalProduction.ps1 默认运行 bin/publish/v0.0.19-pre。正式发布先切到最终 main，生成此目录后再启动；候选与旧版演练则通过 -PublishPath 显式选择对应目录，不覆盖历史产物。v0.0.19-pre-candidate 仅用于 Git 前兼容验收。
 
 在服务端工程根目录的 PowerShell 终端执行：
 
 ```powershell
-dotnet publish .\RPG2D_Server.csproj -c Release --self-contained false -p:UseAppHost=false -o .\bin\publish\v0.0.18
+dotnet publish .\RPG2D_Server.csproj -c Release --self-contained false -p:UseAppHost=false -o .\bin\publish\v0.0.19-pre
 ```
 
 发布保留默认依赖还原，按当前分支的 csproj 核对 NuGet 结果；切换分支后不要默认用 --no-restore 复用 obj。还原不会执行数据库脚本。
@@ -164,8 +188,8 @@ dotnet .\RPG2D_Server.dll --environment Production --urls http://127.0.0.1:5080 
 
 仅在隐藏提示中输入原 rpg2d_app 密码，不把密码写进命令、脚本或发布 JSON。脚本 finally 恢复上述三项原进程变量与目录、清理输入对象；Process 配置不持久写入用户 / 系统环境。环境变量仍会在进程内以明文使用，这种本机学习方式不是机密保险箱。直接运行 DLL 不使用 VS launchSettings.json，Production 不默认加载 User Secrets。
 
-启动日志应显示 Production、127.0.0.1:5080 及本版发布目录。PublishAcceptance.http 逐条检查健康 / 真实公告 200、OpenAPI 404、管理 GET / POST / PUT / DELETE 全部 404。特意开启 Enabled 验证环境限制；POST / PUT 使用不完整 JSON，PUT / DELETE 使用 id=0，避免构成有效数据修改。不要改成合法新增或删除已有公告的请求。
+启动日志应显示 Production、127.0.0.1:5080 及当轮发布目录。使用 RPG2D_Server.http 的 A1 / A2 检查健康 / 真实公告 200、A3 检查 OpenAPI 404，再逐条执行 D1～D4 确认管理 GET / POST / PUT / DELETE 全部 404。特意开启 Enabled 验证环境限制；D2 / D3 使用不完整 JSON，管理 GET / PUT / DELETE 使用 id=0，避免构成有效数据修改。保留分节中的既定测试输入。
 
-实际候选已确认公开 200、OpenAPI / 四种管理动作 404；真实 Redis 停服时日志显示回源数据库，恢复后重新回填 / 命中。独立复核时 Production 进程运行本版发布 DLL，缓存 rpg2d:production:rpg2d_dev:notice:current:v1 为 schemaVersion=1 / id=5，连续命中 PTTL=29999 → 29997ms；该键与 Development Key 隔离。旧 Player 已完成用户画面观察，日志正常退出；数据库仅保留原公告。隔离预检另覆盖 Redis 不可达、禁用 / 无 Redis 配置和缺 MySQL 配置拒绝启动。具体证据与限制见设计目录 v0.0.18 开发记录。结束服务时在原终端 Ctrl+C。
+历史 v0.0.18 候选已确认公开 200、OpenAPI / 四种管理动作 404；真实 Redis 停服时日志显示回源数据库，恢复后重新回填 / 命中。独立复核时 Production 进程运行当版发布 DLL，缓存 rpg2d:production:rpg2d_dev:notice:current:v1 为 schemaVersion=1 / id=5，连续命中 PTTL=29999 → 29997ms；该键与 Development Key 隔离。旧 Player 已完成用户画面观察，日志正常退出；数据库仅保留原公告。隔离预检另覆盖 Redis 不可达、禁用 / 无 Redis 配置和缺 MySQL 配置拒绝启动。具体证据与限制见设计目录 v0.0.18 开发记录；v0.0.19-pre 结果见前文及其开发记录。结束服务时在原终端 Ctrl+C。
 
-版本发布流程为推送来源分支、合并 develop / main，在 main 重新发布并核对接口成功后，再创建和推送服务端附注标签；保留远端来源分支。客户端无改动时继续保留 v0.0.16 基线与 Player，不创建空提交或同名新客户端标签。
+版本发布流程为推送来源分支、合并 develop / main，在 main 重新发布并核对接口成功后，再创建和推送附注标签，保留远端来源分支。历史 v0.0.18 客户端无改动，因此复用 v0.0.16；本次 v0.0.19-pre 两端均有源码改动，需要分别记录最终 main 提交、产物与标签，候选验收不等于完成发布。
