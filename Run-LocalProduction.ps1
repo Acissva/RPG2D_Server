@@ -4,7 +4,7 @@
 
 $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($PublishPath)) {
-    $PublishPath = Join-Path $PSScriptRoot 'bin\publish\v0.0.19-pre'
+    $PublishPath = Join-Path $PSScriptRoot 'bin\publish\v0.0.19'
 }
 $publishDirectory = (Resolve-Path -LiteralPath $PublishPath).Path
 $applicationDll = Join-Path $publishDirectory 'RPG2D_Server.dll'
