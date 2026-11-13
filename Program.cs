@@ -6,6 +6,7 @@ var connectionOptions = MySqlConfiguration.ReadValidatedOptions(builder.Configur
 builder.Services.AddMySqlDatabase(connectionOptions.ConnectionString);
 builder.Services.AddRedisCaching();
 builder.Services.AddNoticeFeature(builder.Environment.EnvironmentName, connectionOptions.Database);
+builder.Services.AddNpcChatFeature();
 builder.Services.AddWebApi();
 
 var app = builder.Build();

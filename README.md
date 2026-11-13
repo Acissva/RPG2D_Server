@@ -2,6 +2,10 @@
 
 RPG2D 独立 ASP.NET Core 业务服务端。v0.0.19-pre 在既有 MySQL 公告、受限开发管理 CRUD 与 Redis Cache-Aside 基础上整理业务目录、公共契约及启动注册，保留 protocolVersion=1，与已有 v0.0.16 Unity / Windows Player 兼容。正式发布节点以服务端 main 提交与附注标签为准。
 
+v0.0.19 已完成 3A2：/api/npc-chat、单例业务占用、UTF-8 JSON / 64 KiB 请求限制与统一上游错误映射已接入。十六份相关 C# 已核对，实际工程隔离副本 Release 编译零警告 / 零错误；保持 NpcChatTurn 的 class / set 写法和学习注释。E1 首次 C# → Python → DeepSeek 成功：448 Token、回复 71 个 UTF-16 代码单元、Python 记录耗时 1.934 秒。健康 / 公告 / OpenAPI 与 Python 健康 GET 均为 200。继续采用 net9.0 / SDK 9.0.304，不增加包。
+
+当前 PythonAi:BaseUrl=http://127.0.0.1:8001/、RequestTimeoutSeconds=55。已完成 48 项本机跨服务检查及用户停服 / 恢复观察，E2 位于根目录唯一 .http。VS2022 的 FolderProfile.pubxml 指向 v0.0.19-candidate，FolderProfile1.pubxml 指向正式 v0.0.19，均 Release / net9.0 / win-x64 / SelfContained=false；Run-LocalProduction.ps1 默认正式目录为 v0.0.19，候选显式传 PublishPath。候选发布的 20 文件与实际 Production 进程身份已核对，健康 / 公告 GET 200，OpenAPI / 管理 GET 404，交谈 GET 405，Redis PONG。Windows Player 真实交谈通过（453 Token、回复 72），客户端改用 localhost 并重建后的等待中退出取消也已通过；服务端监听和 PythonAi 配置保持现状。正式发布从 main 执行，提交 / 标签与产物身份以设计目录本版记录为准。
+
 数据库执行包装位于 Infrastructure/Database/MySqlOperationExecutor，复用数据源并为每次操作独立获取连接；公告 SQL、参数绑定和记录映射由 MySqlNoticeRepository 负责。公共 ICacheStore / RedisCacheStore 处理 Redis 命令与有限等待，NoticeCache 负责公告缓存格式、TTL 和降级策略。已识别的存储不可用使用 DataStoreUnavailableException，输入字段错误使用 InputValidationException；公告规则由 NoticeContentRules 定义，记录公有属性使用 Id，对外 JSON 维持 camelCase。
 
 ## 当前源码结构
