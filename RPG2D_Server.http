@@ -4,7 +4,7 @@
 # 唯一维护的 HTTP 请求入口；每次只发送当前选中的请求。
 # Host 指向本次正在验证的进程；Development 与 Production 不同时占用同一端口。
 # SampleId 初始为 0，不代表已有公告；仅在 B1 成功后填入本轮实际 id。
-# 本批首次观察只执行 A1、A2；B / C / D 在后续验收按前提逐条执行。
+# v0.0.19 批次 3B：只在 Python 已停止时发送 E2；A1 / A2 观察业务隔离，不发送 E1 或全部请求。
 # B 组只处理本轮新建样本；删除前执行 B2 确认编号、标题和正文。
 # 修改 Host、环境或数据库后，先核对本轮样本归属；不能沿用旧编号。
 
@@ -146,3 +146,31 @@ Accept: application/json
 ### D4 仅 Production：管理 DELETE 返回 404
 DELETE {{Host}}/api/dev/notices/0
 Accept: application/json
+
+### E1 v0.0.19：首次 C# → Python → 模型交谈；只发送一次，会产生模型费用
+# 先启动 Python 正常入口与当前 C# http 配置；不运行旧学习探针。
+POST {{Host}}/api/npc-chat
+Content-Type: application/json; charset=utf-8
+Accept: application/json
+
+{
+  "protocolVersion": 1,
+  "requestId": "19a20000000000000000000000000001",
+  "npcId": "npc_ai_guide_001",
+  "message": "我是刚来到小镇的冒险者，可以去哪里了解招募消息？",
+  "history": []
+}
+### E2 v0.0.19：仅在 Python 正常入口已停止时观察 503
+# 先在 PyCharm 停止 run_server.py，确认进程结束；C# 保持运行。
+# Python 运行时不要发送本请求，否则会调用真实模型；恢复后只观察健康 GET。
+POST {{Host}}/api/npc-chat
+Content-Type: application/json; charset=utf-8
+Accept: application/json
+
+{
+  "protocolVersion": 1,
+  "requestId": "19b00000000000000000000000000002",
+  "npcId": "npc_ai_guide_001",
+  "message": "本机 Python 停止时的转接观察",
+  "history": []
+}

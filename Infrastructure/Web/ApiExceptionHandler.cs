@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using RPG2D_Server.Shared.Data;
+using RPG2D_Server.Shared.Network;
 using RPG2D_Server.Shared.Validation;
 
 namespace RPG2D_Server.Infrastructure.Web
@@ -27,6 +28,23 @@ namespace RPG2D_Server.Infrastructure.Web
             {
                 problem = new ValidationProblemDetails(validation.Errors) { Status = StatusCodes.Status400BadRequest, Title = "输入数据无效" };
                 _logger.LogWarning("请求输入校验失败，TraceId {TraceId}。", httpContext.TraceIdentifier);
+            }
+            else if (exception is UpstreamServiceException upstream)
+            {
+                var (status, title) = upstream.Kind switch
+                {
+                    UpstreamServiceException.FailureKind.Unavailable => (StatusCodes.Status503ServiceUnavailable, "AI 服务暂时不可用"),
+                    UpstreamServiceException.FailureKind.Timeout => (StatusCodes.Status504GatewayTimeout, "AI 服务响应超时"),
+                    UpstreamServiceException.FailureKind.Busy => (StatusCodes.Status429TooManyRequests, "AI 服务忙碌"),
+                    _ => (StatusCodes.Status502BadGateway, "AI 服务返回无效数据")
+                };
+                problem = new ProblemDetails { Status = status, Title = title, Detail = "请稍后手动重试。" };
+                _logger.LogWarning("上游调用失败，Kind {Kind}，TraceId {TraceId}。", upstream.Kind, httpContext.TraceIdentifier);
+            }
+            else if (exception is BadHttpRequestException badRequest)
+            {
+                problem = new ProblemDetails { Status = badRequest.StatusCode, Title = badRequest.StatusCode == StatusCodes.Status413PayloadTooLarge ? "请求正文超出大小上限" : "请求格式无效" };
+                _logger.LogWarning("HTTP 请求被拒绝，Status {Status}，TraceId {TraceId}。", badRequest.StatusCode, httpContext.TraceIdentifier);
             }
             else
             {
